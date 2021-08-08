@@ -1,0 +1,17 @@
+[package]
+name = "solcery_engine"
+version = "0.1.0"
+license = "Apache-2.0"
+homepage = "https://solana.com/"
+edition = "2018"
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+solana-program = "=1.7.6"
+solcery_ptr_account = { path = "../ptr_account" }
+
+[lib]
+name = "solcery_engine"
+crate-type = ["cdylib", "lib"]
