@@ -9,8 +9,12 @@ edition = "2018"
 no-entrypoint = []
 
 [dependencies]
-solana-program = "=1.7.6"
-solcery_ptr_account = { path = "../ptr_account" }
+solana-program = "=1.7.8"
+solcery_crud = { path = "../crud" }
+solcery_template= { path = "../template" }
+solcery_object = { path = "../object" }
+solcery_storage = { path = "../storage" }
+solcery_project = { path = "../project" }
 
 [lib]
 name = "solcery_engine"
