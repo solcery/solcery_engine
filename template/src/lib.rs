@@ -12,24 +12,37 @@ use {
     },
 };
 
+#[derive(BorshSerialize, BorshDeserialize, BorshSchema, Debug, PartialEq)]
+pub enum SolceryTypes {
+    Error,
+    SInt,
+    SString,
+    SLink { template: Pubkey },
+    SBrick { brick_type: u32 },
+}
+
 use std::convert::TryInto;
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct TemplateData {
     pub name: String,
     pub storages: Vec<Pubkey>,
     pub max_field_index: u32,
-    pub fields: Vec<TemplateField>,
+    pub fields: Vec<Field>,
     pub custom_data: Vec<u8>,
 }
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
-pub struct TemplateField {
+#[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
+pub struct Field {
     pub id: u32,
     pub enabled: bool,
-    pub field_type: u8,
+    pub params: FieldParams,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
+pub struct FieldParams {
+    pub field_type: SolceryTypes,
     pub name: String, 
-    pub field_data: Vec<u8>,
 }
 
 pub fn process_instruction(
@@ -48,8 +61,8 @@ pub fn process_instruction(
     	}
     	1 => {
     		let template_info = next_account_info(accounts_iter)?;
-            let (field_type, name) = data.split_first().unwrap();
-    		add_field(template_info, *field_type, String::from_utf8(name.to_vec()).unwrap())
+            let field_params = FieldParams::deserialize(&mut &data[..])?;
+    		add_field(template_info, field_params)
     	}
         3 => {
             let template_info = next_account_info(accounts_iter)?;
@@ -71,7 +84,8 @@ pub fn create(
         name: "New template".to_string(),
         storages: vec![*storage_info.key], // TODO: template without storage
         max_field_index: 0,
-        fields: Vec::new()
+        fields: Vec::new(),
+        custom_data: Vec::new(),
     };
     solcery_crud::initialize(&project_info, &template_info);
     solcery_crud::write(template_info, 0, new_template_data.try_to_vec().unwrap());
@@ -82,8 +96,7 @@ pub fn create(
 
 pub fn add_field(
     template_info: &AccountInfo,
-    field_type: u8,
-    name: String,
+    field_params: FieldParams,
 ) -> ProgramResult {
 	msg!("Template/AddField");
     let mut template = {
@@ -91,12 +104,10 @@ pub fn add_field(
         TemplateData::deserialize(&mut &template_data[..])?
     };
     template.max_field_index += 1;
-    let field = TemplateField {
+    let field = Field {
         id: template.max_field_index,
         enabled: true,
-        field_type,
-        name,
-        field_data: Vec::new(),
+        params: field_params,
     };
     template.fields.push(field);
     solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
