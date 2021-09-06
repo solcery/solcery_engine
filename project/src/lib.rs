@@ -24,6 +24,7 @@ pub struct Project {
     pub name: String,
     pub owner: Pubkey,
     pub template_storage: Pubkey,
+    pub uniq_id: u32,
 }
 
 pub fn check_access(user_info: &AccountInfo, project_info: &AccountInfo) -> bool {
@@ -59,9 +60,19 @@ pub fn create(
         name: "New project".to_string(), // TODO: name
         owner: *owner_info.key,
         template_storage: *project_templates_storage_info.key,
+        uniq_id: 0,
     };
     solcery_crud::initialize(&project_info, &project_info);
     solcery_crud::write(&project_info, 0, project_data.try_to_vec().unwrap());
     solcery_storage::assign(&project_info, &project_templates_storage_info, &project_info)?;
     Ok(())
+}
+
+pub fn get_uniq_id(
+    project_info: &AccountInfo,
+) -> u32 {
+    let mut project_data = Project::deserialize(&mut &project_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..]).unwrap();
+    project_data.uniq_id = project_data.uniq_id + 1;
+    solcery_crud::write(&project_info, 0, project_data.try_to_vec().unwrap());
+    project_data.uniq_id - 1
 }

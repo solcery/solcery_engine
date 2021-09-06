@@ -25,6 +25,7 @@ use std::convert::TryInto;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct TemplateData {
+    pub id: u32,
     pub name: String,
     pub storages: Vec<Pubkey>,
     pub max_field_index: u32,
@@ -64,6 +65,12 @@ pub fn process_instruction(
             let field_params = FieldParams::deserialize(&mut &data[..])?;
     		add_field(template_info, field_params)
     	}
+        2 => {
+            let template_info = next_account_info(accounts_iter)?;
+            msg!("{:?}", data);
+            let field_id = u32::deserialize(&mut &data[..])?;
+            delete_field(template_info, field_id)
+        }
         3 => {
             let template_info = next_account_info(accounts_iter)?;
             let name = String::deserialize(&mut &data[..])?;
@@ -81,6 +88,7 @@ pub fn create(
 ) -> ProgramResult { 
 	msg!("Template/Create");
     let new_template_data = TemplateData {
+        id: solcery_project::get_uniq_id(project_info),
         name: "New template".to_string(),
         storages: vec![*storage_info.key], // TODO: template without storage
         max_field_index: 0,
@@ -112,6 +120,29 @@ pub fn add_field(
     template.fields.push(field);
     solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
     Ok(())
+}
+
+pub fn delete_field(
+    template_info: &AccountInfo,
+    field_id: u32,
+) -> ProgramResult {
+    msg!("Template/DeleteField");
+    let mut template = {
+        let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+        TemplateData::deserialize(&mut &template_data[..])?
+    };
+    msg!("{:?}", template.fields);
+    msg!("{:?}", field_id);
+    let index_of_field_id = template.fields.iter().position(|x| x.id == field_id);
+    msg!("{:?}", index_of_field_id);
+    match index_of_field_id {
+        Some(ind) => {
+            template.fields.remove(ind);
+            solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
+            Ok(())
+        }
+        _ => Err(ProgramError::InvalidAccountData)
+    }
 }
 
 pub fn change_name(

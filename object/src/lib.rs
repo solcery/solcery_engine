@@ -13,17 +13,24 @@ use {
 };
 
 /// Struct wrapping data and providing metadata
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
-pub struct ObjectData {
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
+pub struct Object {
+    pub id: u32,
     pub template: Pubkey,
-    pub fields: Vec<ObjectField>,
+    pub data: ObjectData,
 }
 
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
+pub struct ObjectData {  
+    pub field_offsets: Vec<ObjectFieldData>,
+    pub field_data: Vec<u8>,
+}
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
-pub struct ObjectField {
-    pub id: u32,
-    pub value: Vec<u8>,
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
+pub struct ObjectFieldData {
+    pub field_id: u32,
+    pub start_offset: usize,
+    pub end_offset: usize,
 }
 
 pub fn process_instruction(
@@ -56,9 +63,13 @@ pub fn create(
 ) -> ProgramResult {
     msg!("Object/Create");
     solcery_crud::initialize(&project_info, &object_info)?;
-    let object_data = ObjectData {
+    let object_data = Object {
+        id: solcery_project::get_uniq_id(project_info),
         template: *template_info.key,
-        fields: Vec::new(),
+        data: ObjectData {
+            field_offsets: Vec::new(),
+            field_data: Vec::new(),
+        }
     };
     solcery_crud::write(&object_info, 0, object_data.try_to_vec().unwrap());
     solcery_storage::add(&storage_info, &object_info)?;
@@ -70,6 +81,6 @@ pub fn update(
     data: Vec<u8>,
 ) -> ProgramResult {
 	msg!("Object/Update");
-    solcery_crud::write(object_info, 32, data); //TODO
+    solcery_crud::write(object_info, 36, data); //TODO object_static_data
     Ok(())
 }
