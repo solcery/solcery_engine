@@ -12,13 +12,15 @@ use {
     },
 };
 
+
+
 #[derive(BorshSerialize, BorshDeserialize, BorshSchema, Debug, PartialEq)]
-pub enum SolceryTypes {
+pub enum SolceryType {
     Error,
     SInt,
     SString,
     SLink { template: Pubkey },
-    SBrick { brick_type: u32 },
+    SBrick { brick_type: u32 }, //TODO
 }
 
 use std::convert::TryInto;
@@ -36,14 +38,15 @@ pub struct TemplateData {
 #[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct Field {
     pub id: u32,
-    pub enabled: bool,
     pub params: FieldParams,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct FieldParams {
-    pub field_type: SolceryTypes,
+    pub field_type: SolceryType,
     pub name: String, 
+    pub construct_client: bool,
+    pub construct_server: bool,
 }
 
 pub fn process_instruction(
@@ -91,8 +94,17 @@ pub fn create(
         id: solcery_project::get_uniq_id(project_info),
         name: "New template".to_string(),
         storages: vec![*storage_info.key], // TODO: template without storage
-        max_field_index: 0,
-        fields: Vec::new(),
+        max_field_index: 10,
+        fields: vec![ Field {
+                id: 1,
+                params: FieldParams {
+                    field_type: SolceryType::SString,
+                    name: String::from("name"),
+                    construct_client: true,
+                    construct_server: true,  
+                },            
+            }
+        ],
         custom_data: Vec::new(),
     };
     solcery_crud::initialize(&project_info, &template_info);
@@ -114,7 +126,6 @@ pub fn add_field(
     template.max_field_index += 1;
     let field = Field {
         id: template.max_field_index,
-        enabled: true,
         params: field_params,
     };
     template.fields.push(field);
@@ -131,10 +142,7 @@ pub fn delete_field(
         let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
         TemplateData::deserialize(&mut &template_data[..])?
     };
-    msg!("{:?}", template.fields);
-    msg!("{:?}", field_id);
     let index_of_field_id = template.fields.iter().position(|x| x.id == field_id);
-    msg!("{:?}", index_of_field_id);
     match index_of_field_id {
         Some(ind) => {
             template.fields.remove(ind);
