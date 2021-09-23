@@ -17,10 +17,23 @@ use {
 #[derive(BorshSerialize, BorshDeserialize, BorshSchema, Debug, PartialEq)]
 pub enum SolceryType {
     Error,
+    SBool,
     SInt,
     SString,
+    SUrl,
     SLink { template: Pubkey },
     SBrick { brick_type: u32 }, //TODO
+    SArray { nested_type: SolceryNestedType },
+}
+
+#[derive(BorshSerialize, BorshDeserialize, BorshSchema, Debug, PartialEq)]
+pub enum SolceryNestedType {
+    Error,
+    SBool,
+    SInt,
+    SString,
+    SUrl,
+    SLink { template: Pubkey },
 }
 
 use std::convert::TryInto;
@@ -29,6 +42,7 @@ use std::convert::TryInto;
 pub struct TemplateData {
     pub id: u32,
     pub name: String,
+    pub code: String,
     pub storages: Vec<Pubkey>,
     pub max_field_index: u32,
     pub fields: Vec<Field>,
@@ -45,6 +59,7 @@ pub struct Field {
 pub struct FieldParams {
     pub field_type: SolceryType,
     pub name: String, 
+    pub code: String,
     pub construct_client: bool,
     pub construct_server: bool,
 }
@@ -79,6 +94,11 @@ pub fn process_instruction(
             let name = String::deserialize(&mut &data[..])?;
             change_name(template_info, name)
         }
+        4 => {
+            let template_info = next_account_info(accounts_iter)?;
+            let code = String::deserialize(&mut &data[..])?;
+            change_code(template_info, code)
+        }
         _ => return Err(ProgramError::InvalidAccountData)
     }
 }
@@ -93,6 +113,7 @@ pub fn create(
     let new_template_data = TemplateData {
         id: solcery_project::get_uniq_id(project_info),
         name: "New template".to_string(),
+        code: "newTemplate".to_string(),
         storages: vec![*storage_info.key], // TODO: template without storage
         max_field_index: 10,
         fields: vec![ Field {
@@ -100,8 +121,9 @@ pub fn create(
                 params: FieldParams {
                     field_type: SolceryType::SString,
                     name: String::from("name"),
+                    code: String::from("name"),
                     construct_client: true,
-                    construct_server: true,  
+                    construct_server: false,  
                 },            
             }
         ],
@@ -162,6 +184,20 @@ pub fn change_name(
         TemplateData::deserialize(&mut &template_data[..])?
     };
     template.name = name;
+    solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
+    Ok(())
+}
+
+pub fn change_code(
+    template_info: &AccountInfo,
+    code: String,
+) -> ProgramResult {
+    let mut template = {
+        let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+        TemplateData::deserialize(&mut &template_data[..])?
+    };
+    template.code = code;
+    msg!("{:?}", template);
     solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
     Ok(())
 }
