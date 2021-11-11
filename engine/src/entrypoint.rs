@@ -1,8 +1,5 @@
 use solana_program::{
-    entrypoint,
-    entrypoint::ProgramResult,
-    program_error::ProgramError,
-    account_info::{ AccountInfo },
+    account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, program_error::ProgramError,
     pubkey::Pubkey,
 };
 
@@ -14,24 +11,12 @@ pub fn process_instruction(
 ) -> ProgramResult {
     let (tag, rest) = instruction_data.split_first().unwrap();
     match tag {
-        0 => {
-            solcery_template::process_instruction(accounts, rest)?
-        }
-        1 => {
-            solcery_object::process_instruction(accounts, rest)?
-        }
-        2 => {
-            solcery_storage::process_instruction(accounts, rest)?
-        }
-        3 => {
-            solcery_crud::process_instruction(accounts, rest)?
-        }
-        4 => {
-            solcery_project::process_instruction(accounts, rest)?
-        }
-        _ => return Err(ProgramError::InvalidAccountData)
+        0 => solcery_template::process_instruction(accounts, rest)?,
+        1 => solcery_object::process_instruction(accounts, rest)?,
+        2 => solcery_storage::process_instruction(accounts, rest)?,
+        3 => solcery_crud::process_instruction(accounts, rest)?,
+        4 => solcery_project::process_instruction(accounts, rest)?,
+        _ => return Err(ProgramError::InvalidAccountData),
     }
     Ok(())
-
-
 }

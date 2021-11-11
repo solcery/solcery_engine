@@ -1,18 +1,16 @@
 use {
-    borsh::{ BorshDeserialize, BorshSerialize, BorshSchema },
+    borsh::{BorshDeserialize, BorshSchema, BorshSerialize},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
         entrypoint,
+        entrypoint::ProgramResult,
         msg,
+        program::invoke,
         program_error::ProgramError,
         program_pack::IsInitialized,
         pubkey::Pubkey,
-        program::invoke,
     },
 };
-
-
 
 #[derive(BorshSerialize, BorshDeserialize, BorshSchema, Debug, PartialEq)]
 pub enum SolceryType {
@@ -58,31 +56,33 @@ pub struct Field {
 #[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct FieldParams {
     pub field_type: SolceryType,
-    pub name: String, 
+    pub name: String,
     pub code: String,
     pub construct_client: bool,
     pub construct_server: bool,
 }
 
-pub fn process_instruction(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
+pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let (tag, data) = instruction_data.split_first().unwrap();
     let accounts_iter = &mut accounts.iter();
     match (tag) {
-    	0 => {
+        0 => {
             let project_info = next_account_info(accounts_iter)?;
-    		let template_info = next_account_info(accounts_iter)?;
-    		let storage_info = next_account_info(accounts_iter)?;
-    		let project_templates_storage_info = next_account_info(accounts_iter)?;
-    		create(project_info, template_info, storage_info, project_templates_storage_info)
-    	}
-    	1 => {
-    		let template_info = next_account_info(accounts_iter)?;
+            let template_info = next_account_info(accounts_iter)?;
+            let storage_info = next_account_info(accounts_iter)?;
+            let project_templates_storage_info = next_account_info(accounts_iter)?;
+            create(
+                project_info,
+                template_info,
+                storage_info,
+                project_templates_storage_info,
+            )
+        }
+        1 => {
+            let template_info = next_account_info(accounts_iter)?;
             let field_params = FieldParams::deserialize(&mut &data[..])?;
-    		add_field(template_info, field_params)
-    	}
+            add_field(template_info, field_params)
+        }
         2 => {
             let template_info = next_account_info(accounts_iter)?;
             msg!("{:?}", data);
@@ -99,7 +99,7 @@ pub fn process_instruction(
             let code = String::deserialize(&mut &data[..])?;
             change_code(template_info, code)
         }
-        _ => return Err(ProgramError::InvalidAccountData)
+        _ => return Err(ProgramError::InvalidAccountData),
     }
 }
 
@@ -108,25 +108,24 @@ pub fn create(
     template_info: &AccountInfo,
     storage_info: &AccountInfo,
     project_templates_storage_info: &AccountInfo,
-) -> ProgramResult { 
-	msg!("Template/Create");
+) -> ProgramResult {
+    msg!("Template/Create");
     let new_template_data = TemplateData {
         id: solcery_project::get_uniq_id(project_info),
         name: "New template".to_string(),
         code: "newTemplate".to_string(),
         storages: vec![*storage_info.key], // TODO: template without storage
         max_field_index: 10,
-        fields: vec![ Field {
-                id: 1,
-                params: FieldParams {
-                    field_type: SolceryType::SString,
-                    name: String::from("name"),
-                    code: String::from("name"),
-                    construct_client: true,
-                    construct_server: false,  
-                },            
-            }
-        ],
+        fields: vec![Field {
+            id: 1,
+            params: FieldParams {
+                field_type: SolceryType::SString,
+                name: String::from("name"),
+                code: String::from("name"),
+                construct_client: true,
+                construct_server: false,
+            },
+        }],
         custom_data: Vec::new(),
     };
     solcery_crud::initialize(&project_info, &template_info);
@@ -136,13 +135,11 @@ pub fn create(
     Ok(())
 }
 
-pub fn add_field(
-    template_info: &AccountInfo,
-    field_params: FieldParams,
-) -> ProgramResult {
-	msg!("Template/AddField");
+pub fn add_field(template_info: &AccountInfo, field_params: FieldParams) -> ProgramResult {
+    msg!("Template/AddField");
     let mut template = {
-        let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+        let mut template_data =
+            &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
         TemplateData::deserialize(&mut &template_data[..])?
     };
     template.max_field_index += 1;
@@ -155,13 +152,11 @@ pub fn add_field(
     Ok(())
 }
 
-pub fn delete_field(
-    template_info: &AccountInfo,
-    field_id: u32,
-) -> ProgramResult {
+pub fn delete_field(template_info: &AccountInfo, field_id: u32) -> ProgramResult {
     msg!("Template/DeleteField");
     let mut template = {
-        let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+        let mut template_data =
+            &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
         TemplateData::deserialize(&mut &template_data[..])?
     };
     let index_of_field_id = template.fields.iter().position(|x| x.id == field_id);
@@ -171,16 +166,14 @@ pub fn delete_field(
             solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
             Ok(())
         }
-        _ => Err(ProgramError::InvalidAccountData)
+        _ => Err(ProgramError::InvalidAccountData),
     }
 }
 
-pub fn change_name(
-    template_info: &AccountInfo,
-    name: String,
-) -> ProgramResult {
+pub fn change_name(template_info: &AccountInfo, name: String) -> ProgramResult {
     let mut template = {
-        let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+        let mut template_data =
+            &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
         TemplateData::deserialize(&mut &template_data[..])?
     };
     template.name = name;
@@ -188,12 +181,10 @@ pub fn change_name(
     Ok(())
 }
 
-pub fn change_code(
-    template_info: &AccountInfo,
-    code: String,
-) -> ProgramResult {
+pub fn change_code(template_info: &AccountInfo, code: String) -> ProgramResult {
     let mut template = {
-        let mut template_data = &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+        let mut template_data =
+            &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
         TemplateData::deserialize(&mut &template_data[..])?
     };
     template.code = code;

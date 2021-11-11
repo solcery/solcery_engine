@@ -1,9 +1,8 @@
 use {
-    borsh::{ BorshDeserialize, BorshSerialize, BorshSchema },
+    borsh::{BorshDeserialize, BorshSchema, BorshSerialize},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
-        entrypoint,
         msg,
         program_error::ProgramError,
         program_pack::IsInitialized,
@@ -31,19 +30,16 @@ pub struct Data {
     pub bytes: Vec<u8>,
 }
 
-pub fn process_instruction(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
+pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let (tag, data) = instruction_data.split_first().unwrap();
     let accounts_iter = &mut accounts.iter();
     msg!("Crud/Process");
-    match (tag) {
+    match tag {
         0 => {
             let account_info = next_account_info(accounts_iter)?;
             write_raw(account_info, 0, data.to_vec())
         }
-        _ => return Err(ProgramError::InvalidAccountData)
+        _ => Err(ProgramError::InvalidAccountData),
     }
 }
 
@@ -62,11 +58,7 @@ impl IsInitialized for RecordData {
     }
 }
 
-
-pub fn initialize(
-    project_info: &AccountInfo,
-    account_info: &AccountInfo,
-) -> ProgramResult {
+pub fn initialize(project_info: &AccountInfo, account_info: &AccountInfo) -> ProgramResult {
     let mut account_data = RecordData::deserialize(&mut &account_info.data.borrow()[..])?;
     if account_data.is_initialized() {
         return Err(ProgramError::AccountAlreadyInitialized);
@@ -78,11 +70,7 @@ pub fn initialize(
         .map_err(|e| e.into())
 }
 
-pub fn write_raw(
-    account_info: &AccountInfo,
-    offset: u64,
-    mut data: Vec<u8>
-) -> ProgramResult {
+pub fn write_raw(account_info: &AccountInfo, offset: u64, mut data: Vec<u8>) -> ProgramResult {
     msg!("Crud/Write raw");
     let start = 0;
     let end = start + data.len();
@@ -97,11 +85,7 @@ pub fn write_raw(
     }
 }
 
-pub fn write(
-    account_info: &AccountInfo,
-    offset: u64,
-    mut data: Vec<u8>,
-) -> ProgramResult {
+pub fn write(account_info: &AccountInfo, offset: u64, mut data: Vec<u8>) -> ProgramResult {
     msg!("Crud/Write");
     // let account_data = RecordData::deserialize(&mut &account_info.data.borrow()[..])?; //TODO
     // if !account_data.is_initialized() {
