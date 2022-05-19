@@ -31,11 +31,13 @@ pub struct Data {
 pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let (tag, data) = instruction_data.split_first().unwrap();
     let accounts_iter = &mut accounts.iter();
-    msg!("Crud/Process");
-    match tag {
+    let signer_info = next_account_info(accounts_iter)?;
+    match (tag) {
         0 => {
             let account_info = next_account_info(accounts_iter)?;
-            write_raw(account_info, 0, data.to_vec())
+            let buf = &mut &data[..];
+            let offset = u64::deserialize(buf)?;
+            write_raw(account_info, offset, buf.to_vec())
         }
         _ => Err(ProgramError::InvalidAccountData),
     }
@@ -70,35 +72,28 @@ pub fn initialize(project_info: &AccountInfo, account_info: &AccountInfo) -> Pro
 
 pub fn write_raw(account_info: &AccountInfo, offset: u64, mut data: Vec<u8>) -> ProgramResult {
     msg!("Crud/Write raw");
-    let start = 0;
+    let start = offset as usize;
     let end = start + data.len();
     if end > account_info.data.borrow().len() {
         Err(ProgramError::AccountDataTooSmall)
     } else {
-        let rest = account_info.data.borrow().len() - end;
-        let mut zeroes: Vec<u8> = vec![0; rest];
-        data.append(&mut zeroes);
-        account_info.data.borrow_mut()[..].copy_from_slice(&data);
+        account_info.data.borrow_mut()[start..end].copy_from_slice(&data);
         Ok(())
     }
 }
 
 pub fn write(account_info: &AccountInfo, offset: u64, mut data: Vec<u8>) -> ProgramResult {
     msg!("Crud/Write");
-    // let account_data = RecordData::deserialize(&mut &account_info.data.borrow()[..])?; //TODO
-    // if !account_data.is_initialized() {
-    //     msg!("Not init");
-    //     return Err(ProgramError::UninitializedAccount);
-    // }
     let start = RecordData::WRITABLE_START_INDEX + offset as usize;
     let end = start + data.len();
-    if end > account_info.data.borrow().len() {
+    let mut acc_data = account_info.data.borrow_mut();
+    if end > acc_data.len() {
         Err(ProgramError::AccountDataTooSmall)
     } else {
-        let rest = account_info.data.borrow().len() - end;
-        let mut zeroes: Vec<u8> = vec![0; rest];
-        data.append(&mut zeroes);
-        account_info.data.borrow_mut()[start..].copy_from_slice(&data);
+        acc_data[start..end].copy_from_slice(&data);
+        for i in end..acc_data.len() {
+            acc_data[i] = 0;
+        }
         Ok(())
     }
 }

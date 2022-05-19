@@ -9,11 +9,6 @@ use {
     },
 };
 
-// impl From<UTF8Error> for ProgramError {
-//     fn from(e: UTF8Error) -> Self {
-//         ProgramError::Custom(e as u32)
-//     }
-// }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct Project {
@@ -34,14 +29,15 @@ pub fn check_access(user_info: &AccountInfo, project_info: &AccountInfo) -> bool
 pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let (tag, _data) = instruction_data.split_first().unwrap();
     let accounts_iter = &mut accounts.iter();
-    match tag {
-        0 => {
+    let signer_info = next_account_info(accounts_iter)?;
+    match (tag) {
+    	0 => {
             let project_info = next_account_info(accounts_iter)?;
-            let project_templates_storage_info = next_account_info(accounts_iter)?;
+    		let project_templates_storage_info = next_account_info(accounts_iter)?;
             let owner_info = next_account_info(accounts_iter)?;
-            create(project_info, project_templates_storage_info, owner_info)
-        }
-        _ => Err(ProgramError::InvalidAccountData),
+    		create(project_info, project_templates_storage_info, owner_info)
+    	},
+        _ => return Err(ProgramError::InvalidAccountData)
     }
 }
 

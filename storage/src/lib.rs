@@ -8,6 +8,7 @@ use {
         pubkey::Pubkey,
     },
 };
+use solcery_crud as crud;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
 pub struct AccountStorage {
@@ -18,18 +19,20 @@ pub struct AccountStorage {
 pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let (tag, _data) = instruction_data.split_first().unwrap();
     let accounts_iter = &mut accounts.iter();
-    match tag {
-        0 => {
-            let storage_info = next_account_info(accounts_iter)?;
-            let account_info = next_account_info(accounts_iter)?;
-            add(storage_info, account_info)
-        }
-        1 => {
-            let storage_info = next_account_info(accounts_iter)?;
-            let account_info = next_account_info(accounts_iter)?;
-            remove(storage_info, account_info)
-        }
-        _ => Err(ProgramError::InvalidAccountData),
+    let signer_info = next_account_info(accounts_iter)?;
+    let project_info = next_account_info(accounts_iter)?;
+    match (tag) {
+    	0 => {
+    		let storage_info = next_account_info(accounts_iter)?;
+    		let account_info = next_account_info(accounts_iter)?;
+    		add(storage_info, account_info)
+    	}
+    	1 => {
+    		let storage_info = next_account_info(accounts_iter)?;
+    		let account_info = next_account_info(accounts_iter)?;
+    		remove(storage_info, account_info)
+    	}
+        _ => return Err(ProgramError::InvalidAccountData)
     }
 }
 
@@ -43,8 +46,8 @@ pub fn assign(
         template: *target_info.key,
         accounts: Vec::new(),
     };
-    solcery_crud::initialize(project_info, storage_info);
-    solcery_crud::write(storage_info, 0, storage.try_to_vec().unwrap())?;
+    crud::initialize(project_info, storage_info);
+    crud::write(storage_info, 0, storage.try_to_vec().unwrap())?;
     Ok(())
 }
 
@@ -52,11 +55,11 @@ pub fn add(storage_info: &AccountInfo, account_info: &AccountInfo) -> ProgramRes
     msg!("Storage/Add");
     let mut storage = {
         let storage_data =
-            &storage_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+            &storage_info.data.borrow()[crud::RecordData::WRITABLE_START_INDEX..];
         AccountStorage::deserialize(&mut &*storage_data)?
     };
     storage.accounts.push(*account_info.key);
-    solcery_crud::write(storage_info, 0, storage.try_to_vec().unwrap())?;
+    crud::write(storage_info, 0, storage.try_to_vec().unwrap())?;
     Ok(())
 }
 
@@ -64,7 +67,7 @@ pub fn remove(storage_info: &AccountInfo, account_info: &AccountInfo) -> Program
     msg!("Storage/Remove");
     let mut storage = {
         let storage_data =
-            &storage_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
+            &storage_info.data.borrow()[crud::RecordData::WRITABLE_START_INDEX..];
         AccountStorage::deserialize(&mut &*storage_data)?
     };
     for i in 0..storage.accounts.len() {
@@ -73,6 +76,6 @@ pub fn remove(storage_info: &AccountInfo, account_info: &AccountInfo) -> Program
             break;
         }
     }
-    solcery_crud::write(storage_info, 0, storage.try_to_vec().unwrap())?;
+    crud::write(storage_info, 0, storage.try_to_vec().unwrap())?;
     Ok(())
 }
