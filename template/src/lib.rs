@@ -2,12 +2,9 @@ use {
     borsh::{BorshDeserialize, BorshSchema, BorshSerialize},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
-        entrypoint,
         entrypoint::ProgramResult,
         msg,
-        program::invoke,
         program_error::ProgramError,
-        program_pack::IsInitialized,
         pubkey::Pubkey,
     },
 };
@@ -33,8 +30,6 @@ pub enum SolceryNestedType {
     SUrl,
     SLink { template: Pubkey },
 }
-
-use std::convert::TryInto;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BorshSchema, PartialEq)]
 pub struct TemplateData {
@@ -65,7 +60,7 @@ pub struct FieldParams {
 pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let (tag, data) = instruction_data.split_first().unwrap();
     let accounts_iter = &mut accounts.iter();
-    match (tag) {
+    match tag {
         0 => {
             let project_info = next_account_info(accounts_iter)?;
             let template_info = next_account_info(accounts_iter)?;
@@ -80,26 +75,26 @@ pub fn process_instruction(accounts: &[AccountInfo], instruction_data: &[u8]) ->
         }
         1 => {
             let template_info = next_account_info(accounts_iter)?;
-            let field_params = FieldParams::deserialize(&mut &data[..])?;
+            let field_params = FieldParams::deserialize(&mut &*data)?;
             add_field(template_info, field_params)
         }
         2 => {
             let template_info = next_account_info(accounts_iter)?;
             msg!("{:?}", data);
-            let field_id = u32::deserialize(&mut &data[..])?;
+            let field_id = u32::deserialize(&mut &*data)?;
             delete_field(template_info, field_id)
         }
         3 => {
             let template_info = next_account_info(accounts_iter)?;
-            let name = String::deserialize(&mut &data[..])?;
+            let name = String::deserialize(&mut &*data)?;
             change_name(template_info, name)
         }
         4 => {
             let template_info = next_account_info(accounts_iter)?;
-            let code = String::deserialize(&mut &data[..])?;
+            let code = String::deserialize(&mut &*data)?;
             change_code(template_info, code)
         }
-        _ => return Err(ProgramError::InvalidAccountData),
+        _ => Err(ProgramError::InvalidAccountData),
     }
 }
 
@@ -128,19 +123,19 @@ pub fn create(
         }],
         custom_data: Vec::new(),
     };
-    solcery_crud::initialize(&project_info, &template_info);
+    solcery_crud::initialize(project_info, template_info);
     solcery_crud::write(template_info, 0, new_template_data.try_to_vec().unwrap());
-    solcery_storage::assign(&project_info, &storage_info, &template_info)?;
-    solcery_storage::add(&project_templates_storage_info, &template_info)?;
+    solcery_storage::assign(project_info, storage_info, template_info)?;
+    solcery_storage::add(project_templates_storage_info, template_info)?;
     Ok(())
 }
 
 pub fn add_field(template_info: &AccountInfo, field_params: FieldParams) -> ProgramResult {
     msg!("Template/AddField");
     let mut template = {
-        let mut template_data =
+        let template_data =
             &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
-        TemplateData::deserialize(&mut &template_data[..])?
+        TemplateData::deserialize(&mut &*template_data)?
     };
     template.max_field_index += 1;
     let field = Field {
@@ -155,9 +150,9 @@ pub fn add_field(template_info: &AccountInfo, field_params: FieldParams) -> Prog
 pub fn delete_field(template_info: &AccountInfo, field_id: u32) -> ProgramResult {
     msg!("Template/DeleteField");
     let mut template = {
-        let mut template_data =
+        let template_data =
             &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
-        TemplateData::deserialize(&mut &template_data[..])?
+        TemplateData::deserialize(&mut &*template_data)?
     };
     let index_of_field_id = template.fields.iter().position(|x| x.id == field_id);
     match index_of_field_id {
@@ -172,9 +167,9 @@ pub fn delete_field(template_info: &AccountInfo, field_id: u32) -> ProgramResult
 
 pub fn change_name(template_info: &AccountInfo, name: String) -> ProgramResult {
     let mut template = {
-        let mut template_data =
+        let template_data =
             &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
-        TemplateData::deserialize(&mut &template_data[..])?
+        TemplateData::deserialize(&mut &*template_data)?
     };
     template.name = name;
     solcery_crud::write(template_info, 0, template.try_to_vec().unwrap());
@@ -183,9 +178,9 @@ pub fn change_name(template_info: &AccountInfo, name: String) -> ProgramResult {
 
 pub fn change_code(template_info: &AccountInfo, code: String) -> ProgramResult {
     let mut template = {
-        let mut template_data =
+        let template_data =
             &template_info.data.borrow()[solcery_crud::RecordData::WRITABLE_START_INDEX..];
-        TemplateData::deserialize(&mut &template_data[..])?
+        TemplateData::deserialize(&mut &*template_data)?
     };
     template.code = code;
     msg!("{:?}", template);

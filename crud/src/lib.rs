@@ -1,13 +1,11 @@
-use {
-    borsh::{BorshDeserialize, BorshSchema, BorshSerialize},
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        program_error::ProgramError,
-        program_pack::IsInitialized,
-        pubkey::Pubkey,
-    },
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint::ProgramResult,
+    msg,
+    program_error::ProgramError,
+    program_pack::IsInitialized,
+    pubkey::Pubkey,
 };
 
 /// Struct wrapping data and providing metadata

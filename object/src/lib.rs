@@ -1,13 +1,12 @@
-use {
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::{
-        account_info::{next_account_info, AccountInfo},
-        entrypoint::ProgramResult,
-        msg,
-        program_error::ProgramError,
-        pubkey::Pubkey,
-    },
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint::ProgramResult,
+    msg,
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
+use solcery_crud as crud;
 
 /// Struct wrapping data and providing metadata
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize, PartialEq)]
@@ -56,7 +55,7 @@ pub fn create(
     object_info: &AccountInfo,
 ) -> ProgramResult {
     msg!("Object/Create");
-    solcery_crud::initialize(project_info, object_info)?;
+    crud::initialize(project_info, object_info)?;
     let object_data = Object {
         id: solcery_project::get_uniq_id(project_info),
         template: *template_info.key,
@@ -65,13 +64,13 @@ pub fn create(
             field_data: Vec::new(),
         },
     };
-    solcery_crud::write(object_info, 0, object_data.try_to_vec().unwrap());
+    crud::write(object_info, 0, object_data.try_to_vec().unwrap());
     solcery_storage::add(storage_info, object_info)?;
     Ok(())
 }
 
 pub fn update(object_info: &AccountInfo, data: Vec<u8>) -> ProgramResult {
     msg!("Object/Update");
-    solcery_crud::write(object_info, 36, data); //TODO object_static_data
+    crud::write(object_info, 36, data); //TODO object_static_data
     Ok(())
 }
